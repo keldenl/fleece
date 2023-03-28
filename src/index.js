@@ -42,8 +42,8 @@ function activate(context) {
         console.log("Still repeating request");
         return;
       } else if (response == "\n\n<end>" || response == "end{code}") {
-        token=""
-        prompt=""
+        token = "";
+        prompt = "";
         vscode.window.showInformationMessage("Done!");
         return;
       }
@@ -74,7 +74,9 @@ function activate(context) {
   const prependFileName = (input) => {
     const editor = vscode.window.activeTextEditor;
     const fileName = editor.document.fileName;
-    return `Below is a expert javascript developer's code in the file ${fileName}:\n\begin{code}\n${input}\n`;
+    const relativePath = vscode.workspace.asRelativePath(fileName);
+    const language = editor.document.languageId;
+    return `Below is a expert ${language} developer's code in the file ${relativePath}:\n\begin{code}\n${input}\n`;
   };
 
   const getEditorLineOrSelection = () => {
