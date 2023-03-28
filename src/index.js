@@ -10,6 +10,8 @@ function activate(context) {
   console.log("ACTIVATED/");
   let prompt = "";
   let token = "";
+  let generating = false;
+  let newLinesInARow = 0;
 
   // Utils to help parse token output
   const escapeNewLine = (arg) =>
@@ -33,26 +35,56 @@ function activate(context) {
     });
 
     socket.on("result", async ({ request, response }) => {
+      generating = true;
       if (typeof response !== "string") {
         return;
       }
-      token += sanitizeText(response).trim();
-      token = sanitizeText(token);
-      if (token.length <= prompt.length) {
-        console.log("Still repeating request");
+      token += response;
+      token = sanitizeText(token).trim();
+      if (token.length <= prompt.trim().length + 2) { // +1 for the \n in the end
         return;
       } else if (response == "\n\n<end>" || response == "end{code}") {
         token = "";
         prompt = "";
+        generating = false;
+        vscode.commands.executeCommand("fleece.stopFleece");
         vscode.window.showInformationMessage("Done!");
         return;
+      }
+
+      // avoid having too many new lines in a row
+      const isNewlineResponse = response.trim().length == 0
+      if (isNewlineResponse) {
+        newLinesInARow++;
+        if (newLinesInARow > 0) {
+          return;
+        }
+      } else {
+        newLinesInARow = 0;
       }
 
       const editor = vscode.window.activeTextEditor;
       if (!editor) return;
 
-      // Print the response at the cursor position
       const position = editor.selection.active;
+
+      // delete \end{code} if existing
+      if (
+        token.substring(prompt.length - 1, token.length).includes("end{code}")
+      ) {
+        const rangeToDelete = new vscode.Range(
+          position.line,
+          Math.max(0, position.character - 9),
+          position.line,
+          position.character
+        );
+        editor.edit((editBuilder) => editBuilder.delete(rangeToDelete));
+        vscode.commands.executeCommand("fleece.stopFleece");
+        vscode.window.showInformationMessage("Done!");
+        return;
+      }
+
+      // Otherwise, print the response at the cursor position
       editor.edit((editBuilder) => editBuilder.insert(position, response));
     });
 
@@ -76,7 +108,7 @@ function activate(context) {
     const fileName = editor.document.fileName;
     const relativePath = vscode.workspace.asRelativePath(fileName);
     const language = editor.document.languageId;
-    return `Below is a expert ${language} developer's code in the file ${relativePath}:\n\begin{code}\n${input}\n`;
+    return `The following is an senior software developer's code. It uses short, concise comments and specifically implements the following comment:${input.trim()}\n\\begin{code}\n`;
   };
 
   const getEditorLineOrSelection = () => {
@@ -104,19 +136,20 @@ function activate(context) {
 
   const submitDalaiRequest = (prompt, config) => {
     const defaultConfig = {
-      temp: 0.1,
-      n_predict: 256,
+      temp: 0.01,
+      // n_predict: 256,
       top_p: 1,
-      repeat_penalty: 1.3,
+      repeat_penalty: 1.5,
       // these below 2 need to be adjusted for machine by machine basis
       model: "alpaca.7B",
       threads: 4,
     };
     token = ""; // reset the response token
+    prompt = sanitizeText(prompt);
     socket.emit("request", {
       ...defaultConfig,
       ...config,
-      prompt: sanitizeText(prompt),
+      prompt,
     });
   };
 
@@ -139,7 +172,9 @@ function activate(context) {
   let disposableStop = vscode.commands.registerCommand(
     "fleece.stopFleece",
     async function () {
-      socket.emit("request", { prompt: "/stop" });
+      if (generating) {
+        socket.emit("request", { prompt: "/stop" });
+      }
     }
   );
 
