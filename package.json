@@ -1,0 +1,50 @@
+{
+    "name": "fleece",
+    "displayName": "Fleece",
+    "description": "Llama for VSCode",
+    "version": "0.0.1",
+    "publisher": "Kelden",
+    "engines": {
+        "vscode": "^1.0.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [
+        "onCommand:fleece.autocompleteNextLine",
+        "onCommand:fleece.stopFleece"
+    ],
+    "main": "./src/index.js",
+    "contributes": {
+        "commands": [{
+                "command": "fleece.autocompleteNextLine",
+                "title": "Autocomplete current line or selection",
+                "category": "Fleece"
+            },
+            {
+                "command": "fleece.stopFleece",
+                "title": "Stop generation",
+                "category": "Fleece"
+            }
+        ],
+        "menus": {
+            "editor/context": [{
+                "command": "fleece.autocompleteNextLine",
+                "group": "navigation"
+            }]
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p .",
+        "watch": "tsc -watch -p ."
+    },
+    "devDependencies": {
+        "@types/vscode": "^1.76.0",
+        "typescript": "^3.9.10",
+        "vscode-test": "^1.6.1"
+    },
+    "dependencies": {
+        "socket.io-client": "^4.6.1"
+    }
+}
