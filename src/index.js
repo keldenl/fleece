@@ -42,6 +42,8 @@ function activate(context) {
         console.log("Still repeating request");
         return;
       } else if (response == "\n\n<end>" || response == "end{code}") {
+        token=""
+        prompt=""
         vscode.window.showInformationMessage("Done!");
         return;
       }
@@ -72,7 +74,7 @@ function activate(context) {
   const prependFileName = (input) => {
     const editor = vscode.window.activeTextEditor;
     const fileName = editor.document.fileName;
-    return `The following code is the file ${fileName}:\n${input}\n`;
+    return `Below is a expert javascript developer's code in the file ${fileName}:\n\begin{code}\n${input}\n`;
   };
 
   const getEditorLineOrSelection = () => {
@@ -100,15 +102,15 @@ function activate(context) {
 
   const submitDalaiRequest = (prompt, config) => {
     const defaultConfig = {
-      temp: 0,
-      n_predict: 64,
+      temp: 0.1,
+      n_predict: 256,
       top_p: 1,
-      repeat_penalty: 0,
+      repeat_penalty: 1.3,
       // these below 2 need to be adjusted for machine by machine basis
       model: "alpaca.7B",
       threads: 4,
     };
-    token = ""; // reset the repsonse token
+    token = ""; // reset the response token
     socket.emit("request", {
       ...defaultConfig,
       ...config,
