@@ -7,3 +7,4 @@ out/
 tsconfig.lsif.json
 *.lsif
 *.db
+*vsix
