@@ -4,6 +4,10 @@
     "description": "Llama for VSCode",
     "version": "0.0.1",
     "publisher": "Kelden",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/keldenl/fleece"
+    },
     "engines": {
         "vscode": "^1.0.0"
     },
@@ -46,14 +50,9 @@
             "when": "editorTextFocus && !editorReadonly"
         }]
     },
-    "scripts": {
-        "vscode:prepublish": "npm run compile",
-        "compile": "tsc -p .",
-        "watch": "tsc -watch -p ."
-    },
     "devDependencies": {
-        "@types/vscode": "^1.76.0",
-        "typescript": "^3.9.10",
+        "@types/vscode": "^1.0.0",
+        "typescript": "^5.0.2",
         "vscode-test": "^1.6.1"
     },
     "dependencies": {
