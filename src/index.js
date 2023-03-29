@@ -41,7 +41,8 @@ function activate(context) {
       }
       token += response;
       token = sanitizeText(token).trim();
-      if (token.length <= prompt.trim().length + 2) { // +1 for the \n in the end
+      if (token.length <= prompt.trim().length + 2) {
+        // +1 for the \n in the end
         return;
       } else if (response == "\n\n<end>" || response == "end{code}") {
         token = "";
@@ -53,10 +54,10 @@ function activate(context) {
       }
 
       // avoid having too many new lines in a row
-      const isNewlineResponse = response.trim().length == 0
+      const isNewlineResponse = response.trim().length == 0;
       if (isNewlineResponse) {
         newLinesInARow++;
-        if (newLinesInARow > 0) {
+        if (newLinesInARow > 1) {
           return;
         }
       } else {
@@ -105,10 +106,15 @@ function activate(context) {
   // UTILS
   const prependFileName = (input) => {
     const editor = vscode.window.activeTextEditor;
-    const fileName = editor.document.fileName;
-    const relativePath = vscode.workspace.asRelativePath(fileName);
+    // const fileName = editor.document.fileName;
+    // const relativePath = vscode.workspace.asRelativePath(fileName);
     const language = editor.document.languageId;
-    return `The following is an senior software developer's code. It uses short, concise comments and specifically implements the following comment:${input.trim()}\n\\begin{code}\n`;
+
+    return `Given the following comment:\n'${input.trim()}'\nWrite a concise implementation that follows best practices and common programming patterns. The implementation should focus on the task at hand while avoiding unnecessary complexity or verbosity. Use ${language} unless otherwise specified in the comment. Begin implementation below:\n\\begin{code}\n`
+    // chatgpt assisted - this is pretty good
+    // return `Given the following comment: ${input.trim()}\nGenerate code implementation that fulfills the requirements stated in the comment. The implementation should be concise and easy to understand, while following best practices and common programming patterns. Avoid unnecessary complexity or verbosity. Please note that we have limited information about the task at hand beyond the comment provided.\n\\begin{code}\n`
+    // original prompt i created
+    // return `The following is an senior software developer's code. It uses short, concise comments and specifically only implements the following comment: '${input.trim()}'\n\\begin{code}\n`;
   };
 
   const getEditorLineOrSelection = () => {
@@ -136,10 +142,20 @@ function activate(context) {
 
   const submitDalaiRequest = (prompt, config) => {
     const defaultConfig = {
-      temp: 0.01,
-      // n_predict: 256,
-      top_p: 1,
+      // temp: 0.1,
+      // // n_predict: 256,
+      // top_p: 1,
+      // // repeat_penalty: 1
+      // repeat_last_n: 5,
+
+      // chatgpt assisted configs
+      n_predict: 96,
+      top_k: 40,
+      top_p: 0.9,
+      repeat_last_n: 2,
       repeat_penalty: 1.5,
+      temp: 0.3,
+
       // these below 2 need to be adjusted for machine by machine basis
       model: "alpaca.7B",
       threads: 4,
