@@ -7,7 +7,11 @@ const platform = os.platform();
 
 // Activate the extension
 function activate(context) {
-  console.log("ACTIVATED/");
+  // server variables
+  const terminalName = "fleece-dalai-terminal";
+  let existingTerminal;
+  let serverProcessId;
+
   let prompt = "";
   let promptNewLines = 0;
   let token = "";
@@ -38,11 +42,15 @@ function activate(context) {
     socket.on("result", async ({ request, response }) => {
       generating = true;
       // Filter out common errors that the terminal may spit back
-      if (response.includes(`repeat_penalty = `) || typeof response !== "string") {
-        return
-    }
+      if (
+        response.includes(`repeat_penalty = `) ||
+        typeof response !== "string"
+      ) {
+        return;
+      }
       token += response;
       token = sanitizeText(token).trim();
+
       if (token.length <= prompt.trim().length + promptNewLines) {
         // +1 for the \n in the end
         return;
@@ -95,9 +103,15 @@ function activate(context) {
     // Handle socket.io error events
     socket.on("connect_error", (error) => {
       console.error("Socket.io Connect Error: " + error.toString());
-      vscode.window.showErrorMessage(
-        "Socket.io Connect Error: " + error.toString()
-      );
+      if (error.toString() === "Error: xhr poll error") {
+        vscode.window.showErrorMessage(
+          "Can't reach Dalai server. Restart local server?"
+        );
+      } else {
+        vscode.window.showErrorMessage(
+          "Socket.io Connect Error: " + error.toString()
+        );
+      }
     });
 
     socket.on("error", (error) => {
@@ -113,7 +127,7 @@ function activate(context) {
     // const relativePath = vscode.workspace.asRelativePath(fileName);
     const language = editor.document.languageId;
 
-    return `Given the following comment:\n'${input.trim()}'\nWrite a concise implementation that follows best practices and common programming patterns. The implementation should focus on the task at hand while avoiding unnecessary complexity or verbosity. Use ${language} unless otherwise specified in the comment. Begin implementation below:\n\\begin{code}\n`
+    return `Given the following comment:\n'${input.trim()}'\nWrite a concise implementation that follows best practices and common programming patterns. The implementation should focus on the task at hand while avoiding unnecessary complexity or verbosity. Use ${language} unless otherwise specified in the comment. Begin implementation below:\n\\begin{code}\n`;
     // chatgpt assisted - this is pretty good
     // return `Given the following comment: ${input.trim()}\nGenerate code implementation that fulfills the requirements stated in the comment. The implementation should be concise and easy to understand, while following best practices and common programming patterns. Avoid unnecessary complexity or verbosity. Please note that we have limited information about the task at hand beyond the comment provided.\n\\begin{code}\n`
     // original prompt i created
@@ -187,7 +201,64 @@ function activate(context) {
     }
   };
 
+  const setMaybeExistingTerminal = () => {
+    existingTerminal = vscode.window.terminals.find(
+      (t) => t.name === terminalName
+    );
+
+    if (existingTerminal) {
+      existingTerminal.show();
+      if (!serverProcessId) {
+        existingTerminal.processId.then((pid) => {
+          serverProcessId = pid;
+        });
+      }
+    }
+    return existingTerminal;
+  };
+
   // COMMANDS
+  // START SERVER
+  let disposibleStartServer = vscode.commands.registerCommand(
+    "fleece.startDalai",
+    () => {
+      const startServerCommand = `npx dalai serve`;
+      const stopServerCommand = "\x03"; // Send Ctrl+C to stop server
+      setMaybeExistingTerminal();
+
+      if (existingTerminal) {
+        existingTerminal.sendText(stopServerCommand);
+        existingTerminal.sendText(startServerCommand);
+      } else {
+        existingTerminal = vscode.window.createTerminal(terminalName);
+        existingTerminal.processId.then((pid) => {
+          serverProcessId = pid;
+          // Wait for a brief moment to give the terminal time to start up
+          setTimeout(() => {
+            existingTerminal.sendText(stopServerCommand);
+            existingTerminal.sendText(startServerCommand);
+            vscode.window.onDidCloseTerminal((closedTerminal) => {
+              if (closedTerminal.name === existingTerminal.name) {
+                // Handle error
+                if (closedTerminal.exitStatus?.code !== 0) {
+                  vscode.window.showInformationMessage(
+                    `Dalai server crashed unexpectedly (Code: ${code})`
+                  );
+                } else {
+                  vscode.window.showInformationMessage(
+                    `Dalai server closed successfully`
+                  );
+                }
+              }
+            });
+          }, 1000);
+        });
+
+        existingTerminal.show();
+      }
+    }
+  );
+
   // STOP COMMAND
   let disposableStop = vscode.commands.registerCommand(
     "fleece.stopFleece",
@@ -202,13 +273,19 @@ function activate(context) {
   let disposable = vscode.commands.registerCommand(
     "fleece.autocompleteNextLine",
     async function () {
+      setMaybeExistingTerminal();
+      if (!serverProcessId) {
+        await vscode.commands.executeCommand("fleece.startDalai");
+      }
       prompt = prependFileName(getEditorLineOrSelection());
       submitDalaiRequest(prompt);
       goToNextLine();
       showThinkingMessage();
     }
   );
-  // Add the command to the extension context
+
+  // Add the commands to the extension context
+  context.subscriptions.push(disposibleStartServer);
   context.subscriptions.push(disposable);
   context.subscriptions.push(disposableStop);
 }

@@ -12,6 +12,7 @@
     ],
     "activationEvents": [
         "onCommand:fleece.autocompleteNextLine",
+        "onCommand:fleece.startDalai",
         "onCommand:fleece.stopFleece"
     ],
     "main": "./src/index.js",
@@ -19,6 +20,11 @@
         "commands": [{
                 "command": "fleece.autocompleteNextLine",
                 "title": "Autocomplete current line or selection",
+                "category": "Fleece"
+            },
+            {
+                "command": "fleece.startDalai",
+                "title": "Start/Restart Dalai Server",
                 "category": "Fleece"
             },
             {
