@@ -36,9 +36,15 @@
         "menus": {
             "editor/context": [{
                 "command": "fleece.commentToCode",
-                "group": "navigation"
+                "group": "edit"
             }]
-        }
+        },
+        "keybindings": [{
+            "command": "fleece.commentToCode",
+            "key": "ctrl+alt+c",
+            "mac": "cmd+alt+c",
+            "when": "editorTextFocus && !editorReadonly"
+        }]
     },
     "scripts": {
         "vscode:prepublish": "npm run compile",
