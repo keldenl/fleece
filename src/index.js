@@ -9,6 +9,7 @@ const platform = os.platform();
 function activate(context) {
   console.log("ACTIVATED/");
   let prompt = "";
+  let promptNewLines = 0;
   let token = "";
   let generating = false;
   let newLinesInARow = 0;
@@ -36,17 +37,19 @@ function activate(context) {
 
     socket.on("result", async ({ request, response }) => {
       generating = true;
-      if (typeof response !== "string") {
-        return;
-      }
+      // Filter out common errors that the terminal may spit back
+      if (response.includes(`repeat_penalty = `) || typeof response !== "string") {
+        return
+    }
       token += response;
       token = sanitizeText(token).trim();
-      if (token.length <= prompt.trim().length + 2) {
+      if (token.length <= prompt.trim().length + promptNewLines) {
         // +1 for the \n in the end
         return;
       } else if (response == "\n\n<end>" || response == "end{code}") {
         token = "";
         prompt = "";
+        promptNewLines = 0;
         generating = false;
         vscode.commands.executeCommand("fleece.stopFleece");
         vscode.window.showInformationMessage("Done!");
@@ -162,6 +165,7 @@ function activate(context) {
     };
     token = ""; // reset the response token
     prompt = sanitizeText(prompt);
+    promptNewLines = (prompt.match(/\n/g) || []).length;
     socket.emit("request", {
       ...defaultConfig,
       ...config,
