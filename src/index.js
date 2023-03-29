@@ -271,7 +271,7 @@ function activate(context) {
 
   // AUTOCOMPLETE COMMAND
   let disposable = vscode.commands.registerCommand(
-    "fleece.autocompleteNextLine",
+    "fleece.commentToCode",
     async function () {
       setMaybeExistingTerminal();
       if (!serverProcessId) {

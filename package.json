@@ -11,15 +11,15 @@
         "Other"
     ],
     "activationEvents": [
-        "onCommand:fleece.autocompleteNextLine",
+        "onCommand:fleece.commentToCode",
         "onCommand:fleece.startDalai",
         "onCommand:fleece.stopFleece"
     ],
     "main": "./src/index.js",
     "contributes": {
         "commands": [{
-                "command": "fleece.autocompleteNextLine",
-                "title": "Autocomplete current line or selection",
+                "command": "fleece.commentToCode",
+                "title": "Convert Comment to Code",
                 "category": "Fleece"
             },
             {
@@ -35,7 +35,7 @@
         ],
         "menus": {
             "editor/context": [{
-                "command": "fleece.autocompleteNextLine",
+                "command": "fleece.commentToCode",
                 "group": "navigation"
             }]
         }
