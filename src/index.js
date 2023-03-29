@@ -18,6 +18,14 @@ function activate(context) {
   let generating = false;
   let newLinesInARow = 0;
 
+  const resetPrompt = () => {
+    prompt = "";
+    promptNewLines = 0;
+    token = "";
+    generating = false;
+    newLinesInARow = 0;
+  };
+
   // Utils to help parse token output
   const escapeNewLine = (arg) =>
     platform.toLowerCase() === "win32"
@@ -50,17 +58,18 @@ function activate(context) {
       }
       token += response;
       token = sanitizeText(token).trim();
+      prompt.trim()
 
-      if (token.length <= prompt.trim().length + promptNewLines) {
+      if (token.length <= prompt.length + promptNewLines) {
         // +1 for the \n in the end
         return;
-      } else if (response == "\n\n<end>" || response == "end{code}") {
-        token = "";
-        prompt = "";
-        promptNewLines = 0;
-        generating = false;
+      } else if (
+        response == "\n\n<end>" ||
+        response == "end{code}"
+      ) {
         vscode.commands.executeCommand("fleece.stopFleece");
         vscode.window.showInformationMessage("Done!");
+        resetPrompt();
         return;
       }
 
@@ -93,6 +102,7 @@ function activate(context) {
         editor.edit((editBuilder) => editBuilder.delete(rangeToDelete));
         vscode.commands.executeCommand("fleece.stopFleece");
         vscode.window.showInformationMessage("Done!");
+        resetPrompt();
         return;
       }
 
@@ -104,9 +114,16 @@ function activate(context) {
     socket.on("connect_error", (error) => {
       console.error("Socket.io Connect Error: " + error.toString());
       if (error.toString() === "Error: xhr poll error") {
-        vscode.window.showErrorMessage(
-          "Can't reach Dalai server. Restart local server?"
-        );
+        vscode.window
+          .showErrorMessage("Can't reach Dalai server. Restart local server?", {
+            title: "Restart",
+            action: "restartServer",
+          })
+          .then((selection) => {
+            if (selection?.action === "restartServer") {
+              vscode.commands.executeCommand("fleece.startDalai");
+            }
+          });
       } else {
         vscode.window.showErrorMessage(
           "Socket.io Connect Error: " + error.toString()
@@ -159,13 +176,6 @@ function activate(context) {
 
   const submitDalaiRequest = (prompt, config) => {
     const defaultConfig = {
-      // temp: 0.1,
-      // // n_predict: 256,
-      // top_p: 1,
-      // // repeat_penalty: 1
-      // repeat_last_n: 5,
-
-      // chatgpt assisted configs
       n_predict: 96,
       top_k: 40,
       top_p: 0.9,
@@ -177,7 +187,6 @@ function activate(context) {
       model: "alpaca.7B",
       threads: 4,
     };
-    token = ""; // reset the response token
     prompt = sanitizeText(prompt);
     promptNewLines = (prompt.match(/\n/g) || []).length;
     socket.emit("request", {
@@ -188,17 +197,16 @@ function activate(context) {
   };
 
   const showThinkingMessage = () => {
-    const msg = vscode.window.showInformationMessage("Fleece is thinking...", {
-      title: "Stop autocomplete",
-      action: "stopAutocomplete",
-    });
-    if (msg) {
-      msg.then((selection) => {
+    vscode.window
+      .showInformationMessage("Fleece is thinking...", {
+        title: "Stop autocomplete",
+        action: "stopAutocomplete",
+      })
+      .then((selection) => {
         if (selection?.action === "stopAutocomplete") {
           vscode.commands.executeCommand("fleece.stopFleece");
         }
       });
-    }
   };
 
   const setMaybeExistingTerminal = () => {
@@ -229,6 +237,7 @@ function activate(context) {
       if (existingTerminal) {
         existingTerminal.sendText(stopServerCommand);
         existingTerminal.sendText(startServerCommand);
+        vscode.window.showInformationMessage(`Starting Dalai Server`);
       } else {
         existingTerminal = vscode.window.createTerminal(terminalName);
         existingTerminal.processId.then((pid) => {
@@ -237,11 +246,14 @@ function activate(context) {
           setTimeout(() => {
             existingTerminal.sendText(stopServerCommand);
             existingTerminal.sendText(startServerCommand);
+            vscode.window.showInformationMessage(`Starting Dalai Server`);
+
+            // Handle closure
             vscode.window.onDidCloseTerminal((closedTerminal) => {
               if (closedTerminal.name === existingTerminal.name) {
                 // Handle error
                 if (closedTerminal.exitStatus?.code !== 0) {
-                  vscode.window.showInformationMessage(
+                  vscode.window.showErrorMessage(
                     `Dalai server crashed unexpectedly (Code: ${code})`
                   );
                 } else {
