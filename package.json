@@ -15,6 +15,7 @@
         "Other"
     ],
     "activationEvents": [
+        "*",
         "onCommand:fleece.commentToCode",
         "onCommand:fleece.startDalai",
         "onCommand:fleece.stopFleece"
@@ -46,7 +47,7 @@
         "keybindings": [{
             "command": "fleece.commentToCode",
             "key": "ctrl+alt+c",
-            "mac": "cmd+alt+c",
+            "mac": "cmd+ctrl+c",
             "when": "editorTextFocus && !editorReadonly"
         }]
     },
