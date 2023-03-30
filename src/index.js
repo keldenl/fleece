@@ -4,6 +4,7 @@ const io = require("socket.io-client");
 
 // Get the user's platform (e.g. "win32", "darwin", "linux")
 const platform = os.platform();
+let decorationType;
 
 // Activate the extension
 function activate(context) {
@@ -58,15 +59,12 @@ function activate(context) {
       }
       token += response;
       token = sanitizeText(token).trim();
-      prompt.trim()
+      prompt.trim();
 
       if (token.length <= prompt.length + promptNewLines) {
         // +1 for the \n in the end
         return;
-      } else if (
-        response == "\n\n<end>" ||
-        response == "end{code}"
-      ) {
+      } else if (response == "\n\n<end>" || response == "end{code}") {
         vscode.commands.executeCommand("fleece.stopFleece");
         vscode.window.showInformationMessage("Done!");
         resetPrompt();
@@ -144,7 +142,8 @@ function activate(context) {
     // const relativePath = vscode.workspace.asRelativePath(fileName);
     const language = editor.document.languageId;
 
-    return `Given the following comment:\n'${input.trim()}'\nWrite a concise implementation that follows best practices and common programming patterns. The implementation should focus on the task at hand while avoiding unnecessary complexity or verbosity. Use ${language} unless otherwise specified in the comment. Begin implementation below:\n\\begin{code}\n`;
+    return `Write a ${language} implementation for the following comment:\n '${input.trim()}'\n\begin{code}\n`;
+    // return `Given the following comment:\n'${input.trim()}'\nWrite a concise implementation that follows best practices and common programming patterns. The implementation should focus on the task at hand while avoiding unnecessary complexity or verbosity. Use ${language} unless otherwise specified in the comment. Begin implementation below:\n\\begin{code}\n`;
     // chatgpt assisted - this is pretty good
     // return `Given the following comment: ${input.trim()}\nGenerate code implementation that fulfills the requirements stated in the comment. The implementation should be concise and easy to understand, while following best practices and common programming patterns. Avoid unnecessary complexity or verbosity. Please note that we have limited information about the task at hand beyond the comment provided.\n\\begin{code}\n`
     // original prompt i created
@@ -176,12 +175,16 @@ function activate(context) {
 
   const submitDalaiRequest = (prompt, config) => {
     const defaultConfig = {
-      n_predict: 96,
-      top_k: 40,
+      // n_predict: 96,
+      n_predict: 50,
+      // top_k: 40,
+      top_k: 20,
       top_p: 0.9,
-      repeat_last_n: 2,
+      // repeat_last_n: 2,
+      repeat_last_n: 5,
       repeat_penalty: 1.5,
-      temp: 0.3,
+      // temp: 0.3,
+      temp: 0.5,
 
       // these below 2 need to be adjusted for machine by machine basis
       model: "alpaca.7B",
@@ -296,10 +299,75 @@ function activate(context) {
     }
   );
 
+  // DECORATIONS
+  const defaultTextDecorationConfig = {
+    color: `rgba(255, 255, 255, 0.35)`,
+    margin: "0 0 0 1rem",
+    fontSize: "80%",
+  };
+  
+  // Decoration for generating text from code
+  decorationType = vscode.window.createTextEditorDecorationType({
+    after: {
+      ...defaultTextDecorationConfig,
+      contentText: `Code from Comment (${
+        process.platform === "darwin" ? "⌘⌃" : "Ctrl+Alt+"
+      }C)`,
+    },
+  });
+
+  const disposableDecoration =
+    vscode.window.onDidChangeTextEditorSelection(updateDecoration);
+
+  const showingDecoration = false;
+  function updateDecoration(event) {
+    const editor = event.textEditor;
+
+    if (!editor) {
+      return;
+    }
+
+    // Get current line
+    const { document, selection } = editor;
+    const line = document.lineAt(selection.active);
+
+    // Check if line is a comment
+    const commentRegex =
+      /^[\s\t]*((\/\/|#|<!--|;|\/\*|--\s*|<!--\s*|\/\/\/|\*\/)\s*(.*))$/;
+    const isComment = commentRegex.test(line.text);
+
+    // Show or clear decoration based on whether the line is a comment or not
+    if (line.isEmptyOrWhitespace || !isComment) {
+      clearDecoration(editor);
+    } else {
+      showDecoration(editor, line);
+    }
+  }
+
+  function showDecoration(editor, line) {
+    if (showingDecoration) return;
+    const range = new vscode.Range(
+      new vscode.Position(line.lineNumber, 0),
+      new vscode.Position(line.lineNumber, line.text.length)
+    );
+
+    editor.setDecorations(decorationType, [
+      { range, hoverMessage: "Autogenerate code" },
+    ]);
+    showingDecoration = true;
+  }
+
+  function clearDecoration(editor) {
+    // Clear all decorations for the decoration type
+    editor.setDecorations(decorationType, []);
+    showingDecoration = false;
+  }
+
   // Add the commands to the extension context
   context.subscriptions.push(disposibleStartServer);
   context.subscriptions.push(disposable);
   context.subscriptions.push(disposableStop);
+  context.subscriptions.push(disposableDecoration);
 }
 
 exports.activate = activate;
