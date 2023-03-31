@@ -21,7 +21,7 @@ npm install dalai -g
 
 2. Follow the steps [here](https://github.com/cocktailpeanut/dalai#just-run-this) to install the models via dalai's readme.
 
-3. Install the Fleece extension from the Visual Studio Code extension store (TBA) or by building it from this repo or downloading the latest `.vsix` [release](https://github.com/keldenl/fleece/releases) in this repo.
+3. Install the Fleece extension from the [VSCode extension marketplace](https://marketplace.visualstudio.com/items?itemName=kelden.fleece) or by building it from this repo or downloading the latest `.vsix` [release](https://github.com/keldenl/fleece/releases) in this repo.
 
 ## Usage
 
