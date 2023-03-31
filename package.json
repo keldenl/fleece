@@ -56,10 +56,14 @@
             "when": "editorTextFocus && !editorReadonly"
         }]
     },
+    "scripts": {
+        "build": "vsce package"
+    },
     "devDependencies": {
         "@types/vscode": "^1.0.0",
         "typescript": "^5.0.2",
-        "vscode-test": "^1.6.1"
+        "vscode-test": "^1.6.1",
+        "@vscode/vsce": "^2.18.0"
     },
     "dependencies": {
         "socket.io-client": "^4.6.1"
