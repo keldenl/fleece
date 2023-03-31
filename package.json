@@ -1,9 +1,9 @@
 {
     "name": "fleece",
     "displayName": "Fleece",
-    "description": "Llama for VSCode",
+    "description": "Fleece is a natural language code generator for Visual Studio Code, powered by Llama and Alpaca language models.",
     "version": "0.0.1",
-    "publisher": "Kelden",
+    "publisher": "kelden",
     "repository": {
         "type": "git",
         "url": "https://github.com/keldenl/fleece"
@@ -14,6 +14,7 @@
     "categories": [
         "Other"
     ],
+    "icon": "./logo-trans.png",
     "activationEvents": [
         "*",
         "onCommand:fleece.commentToCode",
@@ -57,7 +58,8 @@
         }]
     },
     "scripts": {
-        "build": "vsce package"
+        "make": "vsce package",
+        "deploy": "vsce publish"
     },
     "devDependencies": {
         "@types/vscode": "^1.0.0",
