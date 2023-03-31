@@ -29,6 +29,33 @@ Fleece currently has one feature: comment-to-code. An indicator for the hotkeys 
 
 _Note that Fleece is limited by the model used and the training data, so it's only as good as the Llama or Alpaca model. More features like autocomplete or language chatbot to answer questions will be added in the future._
 
+## Local Building and Installation
+
+1. Clone the repository:
+```
+git clone git@github.com:keldenl/fleece.git
+```
+2. Install `vsce` globally (if not already installed):
+```
+npm install -g @vscode/vsce
+```
+3. In the cloned repository, run the following command to generate a `.vsix` file:
+```
+vsce package
+```
+4. This should generate a `.vsix` file, which can be installed in VS Code via the command palette (`Ctrl+Shift+P`) using the "Extensions: Install from VSIX..." command.
+
+5. Alternatively, you can also build and run Fleece locally in VS Code using the following steps:
+- Open the cloned repository in VS Code
+- Press `F5` to start a local build and launch an instance of VS Code with the Fleece extension
+- Use the extension in the launched instance of VS Code
+
+
+
+
+
+
+
 ## Contributing
 
 Contributions to Fleece are welcome! To contribute, follow these guidelines:
