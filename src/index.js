@@ -2,7 +2,7 @@ const os = require("os");
 const vscode = require("vscode");
 const io = require("socket.io-client");
 
-// Get the user's platform (e.g. "win32", "darwin", "linux")
+// Get the user's platform (e.g. "win32", "darwin", "linux"
 const platform = os.platform();
 let decorationType;
 
@@ -42,6 +42,12 @@ function activate(context) {
 
   // Socket setup
   const socket = io("ws://localhost:3000");
+  const socketEmitConnected = (e, data) => {
+    if (socket.connected) {
+      socket.emit(e, data);
+    }
+  };
+
   socket.on("connect", () => {
     console.log("Socket.io Client Connected");
 
@@ -65,10 +71,11 @@ function activate(context) {
       if (token.length <= prompt.length + promptNewLines) {
         // +1 for the \n in the end
         return;
-      } else if (response == "\n\n<end>" || response == "end{code}") {
+      } else if (response == "\n\n<end>") {
+        vscode.window.showInformationMessage("Done!");
+      } else if (response == "\\end{code}") {
         vscode.commands.executeCommand("fleece.stopFleece");
         vscode.window.showInformationMessage("Done!");
-        resetPrompt();
         return;
       }
 
@@ -89,9 +96,7 @@ function activate(context) {
       const position = editor.selection.active;
 
       // delete \end{code} if existing
-      if (
-        token.substring(prompt.length - 1, token.length).includes("end{code}")
-      ) {
+      if (token.includes("\\end{code}")) {
         const rangeToDelete = new vscode.Range(
           position.line,
           Math.max(0, position.character - 9),
@@ -101,7 +106,6 @@ function activate(context) {
         editor.edit((editBuilder) => editBuilder.delete(rangeToDelete));
         vscode.commands.executeCommand("fleece.stopFleece");
         vscode.window.showInformationMessage("Done!");
-        resetPrompt();
         return;
       }
 
@@ -143,7 +147,7 @@ function activate(context) {
     // const relativePath = vscode.workspace.asRelativePath(fileName);
     const language = editor.document.languageId;
 
-    return `Write a ${language} implementation for the following comment:\n '${input.trim()}'\n\begin{code}\n`;
+    return `Write a ${language} implementation for the following comment:\n '${input.trim()}'\n\\begin{code}\n`;
     // return `Given the following comment:\n'${input.trim()}'\nWrite a concise implementation that follows best practices and common programming patterns. The implementation should focus on the task at hand while avoiding unnecessary complexity or verbosity. Use ${language} unless otherwise specified in the comment. Begin implementation below:\n\\begin{code}\n`;
     // chatgpt assisted - this is pretty good
     // return `Given the following comment: ${input.trim()}\nGenerate code implementation that fulfills the requirements stated in the comment. The implementation should be concise and easy to understand, while following best practices and common programming patterns. Avoid unnecessary complexity or verbosity. Please note that we have limited information about the task at hand beyond the comment provided.\n\\begin{code}\n`
@@ -202,6 +206,10 @@ function activate(context) {
   };
 
   const submitDalaiRequest = (prompt, config) => {
+    if (generating) {
+      vscode.window.showErrorMessage("Fleece is already generating!");
+      return false;
+    }
     const defaultConfig = {
       // n_predict: 96,
       n_predict: 50,
@@ -220,11 +228,13 @@ function activate(context) {
     };
     prompt = sanitizeText(prompt);
     promptNewLines = (prompt.match(/\n/g) || []).length;
-    socket.emit("request", {
+    socketEmitConnected("request", {
       ...defaultConfig,
       ...config,
       prompt,
     });
+    generating = true;
+    return true;
   };
 
   const showThinkingMessage = () => {
@@ -235,6 +245,7 @@ function activate(context) {
       })
       .then((selection) => {
         if (selection?.action === "stopAutocomplete") {
+          resetPrompt();
           vscode.commands.executeCommand("fleece.stopFleece");
         }
       });
@@ -252,8 +263,20 @@ function activate(context) {
           serverProcessId = pid;
         });
       }
+      return existingTerminal;
+    } else {
+      vscode.window
+        .showErrorMessage("Can't reach Dalai server. Restart local server?", {
+          title: "Restart",
+          action: "restartServer",
+        })
+        .then((selection) => {
+          if (selection?.action === "restartServer") {
+            vscode.commands.executeCommand("fleece.startDalai");
+          }
+        });
+      return false;
     }
-    return existingTerminal;
   };
 
   // COMMANDS
@@ -264,6 +287,7 @@ function activate(context) {
       const startServerCommand = `npx dalai serve`;
       const stopServerCommand = "\x03"; // Send Ctrl+C to stop server
       setMaybeExistingTerminal();
+      resetPrompt();
 
       if (existingTerminal) {
         existingTerminal.sendText(stopServerCommand);
@@ -304,9 +328,10 @@ function activate(context) {
   // STOP COMMAND
   let disposableStop = vscode.commands.registerCommand(
     "fleece.stopFleece",
-    async function () {
+    function () {
       if (generating) {
-        socket.emit("request", { prompt: "/stop" });
+        socketEmitConnected("request", { prompt: "/stop" });
+        resetPrompt();
       }
     }
   );
@@ -314,25 +339,27 @@ function activate(context) {
   // COMMENT TO CODE COMMAND
   let disposable = vscode.commands.registerCommand(
     "fleece.commentToCode",
-    async function () {
-      setMaybeExistingTerminal();
-      if (!serverProcessId) {
-        await vscode.commands.executeCommand("fleece.startDalai");
+    function () {
+      const exists = setMaybeExistingTerminal();
+      if (!exists || !serverProcessId) {
+        return;
       }
       prompt = commentToCodePrompt(getEditorLineOrSelection());
-      submitDalaiRequest(prompt);
-      goToNextLine();
-      showThinkingMessage();
+      const success = submitDalaiRequest(prompt);
+      if (success) {
+        goToNextLine();
+        showThinkingMessage();
+      }
     }
   );
 
   // AUTOCOMPLETE COMMAND
   let disposableAutocomplete = vscode.commands.registerCommand(
     "fleece.autocomplete",
-    async function () {
-      setMaybeExistingTerminal();
-      if (!serverProcessId) {
-        await vscode.commands.executeCommand("fleece.startDalai");
+    function () {
+      const exists = setMaybeExistingTerminal();
+      if (!exists || !serverProcessId) {
+        return;
       }
       prompt = autocompletePrompt(getTextFromCurrentAndPreviousTwoLines());
       submitDalaiRequest(prompt);
@@ -359,7 +386,7 @@ function activate(context) {
   const disposableDecoration =
     vscode.window.onDidChangeTextEditorSelection(updateDecoration);
 
-  const showingDecoration = false;
+  let showingDecoration = false;
   function updateDecoration(event) {
     const editor = event.textEditor;
 
