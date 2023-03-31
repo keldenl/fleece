@@ -28,6 +28,11 @@
                 "category": "Fleece"
             },
             {
+                "command": "fleece.autocomplete",
+                "title": "Autocomplete",
+                "category": "Fleece"
+            },
+            {
                 "command": "fleece.startDalai",
                 "title": "Start/Restart Dalai Server",
                 "category": "Fleece"
@@ -47,7 +52,7 @@
         "keybindings": [{
             "command": "fleece.commentToCode",
             "key": "ctrl+alt+c",
-            "mac": "cmd+ctrl+c",
+            "mac": "cmd+alt+c",
             "when": "editorTextFocus && !editorReadonly"
         }]
     },
