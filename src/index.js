@@ -3,6 +3,7 @@ const vscode = require("vscode");
 const io = require("socket.io-client");
 
 // Get the user's platform (e.g. "win32", "darwin", "linux"
+
 const platform = os.platform();
 let decorationType;
 
@@ -41,7 +42,7 @@ function activate(context) {
   const sanitizeText = (text) => escapeNewLine(escapeDoubleQuotes(text));
 
   // Socket setup
-  const socket = io("ws://localhost:3000");
+  let socket = io("ws://localhost:3000");
   const socketEmitConnected = (e, data) => {
     if (socket.connected) {
       socket.emit(e, data);
@@ -245,7 +246,6 @@ function activate(context) {
       })
       .then((selection) => {
         if (selection?.action === "stopAutocomplete") {
-          resetPrompt();
           vscode.commands.executeCommand("fleece.stopFleece");
         }
       });
@@ -284,6 +284,7 @@ function activate(context) {
   let disposibleStartServer = vscode.commands.registerCommand(
     "fleece.startDalai",
     () => {
+      socket = io("ws://localhost:3000", { forceNew: true });
       const startServerCommand = `npx dalai serve`;
       const stopServerCommand = "\x03"; // Send Ctrl+C to stop server
       setMaybeExistingTerminal();
