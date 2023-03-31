@@ -1,6 +1,6 @@
 # Fleece
 
-<img src="./logo.jpg" width="250" alt="Fleece Logo">
+<p align="center"><img src="./logo.jpg" width="250"  alt="Fleece Logo"></p>
 
 Fleece is a Visual Studio Code extension that allows developers to generate code using natural language. It's powered by [dalai](https://github.com/cocktailpeanut/dalai), an open source project that uses [llama.cpp](https://github.com/ggerganov/llama.cpp) and [alpaca.cpp](https://github.com/antimatter15/alpaca.cpp) language models to understand and interpret natural language.
 
