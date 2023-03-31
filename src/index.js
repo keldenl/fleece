@@ -8,6 +8,7 @@ let decorationType;
 
 // Activate the extension
 function activate(context) {
+  console.log("activated");
   // server variables
   const terminalName = "fleece-dalai-terminal";
   let existingTerminal;
@@ -136,7 +137,7 @@ function activate(context) {
   });
 
   // UTILS
-  const prependFileName = (input) => {
+  const commentToCodePrompt = (input) => {
     const editor = vscode.window.activeTextEditor;
     // const fileName = editor.document.fileName;
     // const relativePath = vscode.workspace.asRelativePath(fileName);
@@ -148,6 +149,12 @@ function activate(context) {
     // return `Given the following comment: ${input.trim()}\nGenerate code implementation that fulfills the requirements stated in the comment. The implementation should be concise and easy to understand, while following best practices and common programming patterns. Avoid unnecessary complexity or verbosity. Please note that we have limited information about the task at hand beyond the comment provided.\n\\begin{code}\n`
     // original prompt i created
     // return `The following is an senior software developer's code. It uses short, concise comments and specifically only implements the following comment: '${input.trim()}'\n\\begin{code}\n`;
+  };
+  const autocompletePrompt = (input) => {
+    const editor = vscode.window.activeTextEditor;
+    const language = editor.document.languageId;
+
+    return `Complete the following ${language} code:\n\\begin{code}\n${input.trim()}`;
   };
 
   const getEditorLineOrSelection = () => {
@@ -161,6 +168,27 @@ function activate(context) {
       return line.text;
     }
   };
+
+  function getTextFromCurrentAndPreviousTwoLines() {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      return;
+    }
+
+    const document = editor.document;
+    const position = editor.selection.active;
+    const currentLine = document.lineAt(position.line);
+    const previousLine1 =
+      position.line - 1 >= 0 ? document.lineAt(position.line - 1) : undefined;
+    const previousLine2 =
+      position.line - 2 >= 0 ? document.lineAt(position.line - 2) : undefined;
+    console.log([previousLine2, previousLine1, currentLine]);
+    const lines = [previousLine2, previousLine1, currentLine].flatMap(
+      (l) => !!l && l.text
+    );
+
+    return lines.join("\n");
+  }
 
   const goToNextLine = () => {
     const editor = vscode.window.activeTextEditor;
@@ -218,7 +246,7 @@ function activate(context) {
     );
 
     if (existingTerminal) {
-      existingTerminal.show();
+      // existingTerminal.show();
       if (!serverProcessId) {
         existingTerminal.processId.then((pid) => {
           serverProcessId = pid;
@@ -268,9 +296,8 @@ function activate(context) {
             });
           }, 1000);
         });
-
-        existingTerminal.show();
       }
+      existingTerminal.show();
     }
   );
 
@@ -284,7 +311,7 @@ function activate(context) {
     }
   );
 
-  // AUTOCOMPLETE COMMAND
+  // COMMENT TO CODE COMMAND
   let disposable = vscode.commands.registerCommand(
     "fleece.commentToCode",
     async function () {
@@ -292,9 +319,23 @@ function activate(context) {
       if (!serverProcessId) {
         await vscode.commands.executeCommand("fleece.startDalai");
       }
-      prompt = prependFileName(getEditorLineOrSelection());
+      prompt = commentToCodePrompt(getEditorLineOrSelection());
       submitDalaiRequest(prompt);
       goToNextLine();
+      showThinkingMessage();
+    }
+  );
+
+  // AUTOCOMPLETE COMMAND
+  let disposableAutocomplete = vscode.commands.registerCommand(
+    "fleece.autocomplete",
+    async function () {
+      setMaybeExistingTerminal();
+      if (!serverProcessId) {
+        await vscode.commands.executeCommand("fleece.startDalai");
+      }
+      prompt = autocompletePrompt(getTextFromCurrentAndPreviousTwoLines());
+      submitDalaiRequest(prompt);
       showThinkingMessage();
     }
   );
@@ -303,15 +344,14 @@ function activate(context) {
   const defaultTextDecorationConfig = {
     color: `rgba(255, 255, 255, 0.35)`,
     margin: "0 0 0 1rem",
-    fontSize: "80%",
   };
-  
+
   // Decoration for generating text from code
   decorationType = vscode.window.createTextEditorDecorationType({
     after: {
       ...defaultTextDecorationConfig,
       contentText: `Code from Comment (${
-        process.platform === "darwin" ? "⌘⌃" : "Ctrl+Alt+"
+        process.platform === "darwin" ? "⌘⌥" : "Ctrl+Alt+"
       }C)`,
     },
   });
@@ -366,6 +406,7 @@ function activate(context) {
   // Add the commands to the extension context
   context.subscriptions.push(disposibleStartServer);
   context.subscriptions.push(disposable);
+  context.subscriptions.push(disposableAutocomplete);
   context.subscriptions.push(disposableStop);
   context.subscriptions.push(disposableDecoration);
 }
